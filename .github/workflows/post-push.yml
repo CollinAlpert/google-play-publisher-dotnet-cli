@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Setup .NET Core SDK
-        uses: actions/setup-dotnet@latest
+        uses: actions/setup-dotnet@v1
         with:
           dotnet-version: '3.1.301'
 
@@ -28,7 +28,7 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@latest
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -51,7 +51,7 @@ jobs:
         run: dotnet publish -r linux-arm64 -c Release -p:PublishSingleFile=true -p:PublishTrimmed=true
 
       - name: Upload Windows asset
-        uses: actions/upload-release-asset@latest
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -61,7 +61,7 @@ jobs:
           asset_content_type: application/vnd.microsoft.portable-executable
 
       - name: Upload macOS asset
-        uses: actions/upload-release-asset@latest
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -71,7 +71,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload Linux asset
-        uses: actions/upload-release-asset@latest
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -81,7 +81,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload Linux ARM asset
-        uses: actions/upload-release-asset@latest
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -91,7 +91,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload Linux ARM 64 asset
-        uses: actions/upload-release-asset@latest
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
