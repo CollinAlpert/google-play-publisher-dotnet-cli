@@ -24,7 +24,7 @@ jobs:
 
       - name: Get project infos
         id: get-project-infos
-        run: echo "::set-output name=project_version::$(grep '<Version>' < GooglePlayPublisherCli.csproj | sed 's/.*<Version>\([0-9]*\.[0-9]*\.[0-9]*\)<\/Version>/\1/')" && echo "::set-output name=project_name::$(grep '<AssemblyName>' < GooglePlayPublisherCli.csproj | sed 's/.*<Version>\(.*\)<\/Version>/\1/')"
+        run: echo "::set-output name=project_version::$(grep '<Version>' < GooglePlayPublisherCli.csproj | sed 's/.*<Version>\([0-9]*\.[0-9]*\.[0-9]*\)<\/Version>/\1/')" && echo "::set-output name=project_name::$(grep '<AssemblyName>' < GooglePlayPublisherCli.csproj | sed 's/.*<AssemblyName>\(.*\)<\/AssemblyName>/\1/')"
 
       - name: Create Release
         id: create_release
