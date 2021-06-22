@@ -10,10 +10,11 @@ using Google.Apis.AndroidPublisher.v3;
 using Google.Apis.AndroidPublisher.v3.Data;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Services;
+using Google.Apis.Upload;
 
 namespace GooglePlayPublisherCli
 {
-	class Program
+	public class Program
 	{
 		private static readonly Regex LanguageCodeRegex = new Regex("[a-z]{2}-[A-Z]{2}", RegexOptions.Compiled | RegexOptions.Singleline);
 
@@ -46,8 +47,7 @@ namespace GooglePlayPublisherCli
 			configuration.Track ??= GetTrack();
 			configuration.TrackStatus ??= GetTrackStatus();
 
-			var success = IsInputValid(configuration);
-			if (!success)
+			if (!IsInputValid(configuration))
 			{
 				return;
 			}
@@ -60,7 +60,7 @@ namespace GooglePlayPublisherCli
 			Console.WriteLine("Please enter language code for release notes (e.g. en-US)");
 			var languageCode = GetLanguageCode();
 			
-			var releaseNotes = string.Join('\n', GetMultilineInput("Please enter release notes. Press Ctrl+d when done."));
+			var releaseNotes = string.Join('\n', GetMultilineInput("Please enter release notes. Press Enter and Ctrl+d when done."));
 
 			var track = new Track
 				{
@@ -87,47 +87,65 @@ namespace GooglePlayPublisherCli
 			Console.WriteLine($"Release with id {commit.Id} committed!");
 		}
 
-		private static async Task<int?> UploadApplicationFileAsync(string editId, AndroidPublisherService service, string packageName, string applicationFile)
+		private static async Task<AndroidPublisherService> CreateServiceAsync(string appName, string serviceAccountFile)
 		{
-			if (applicationFile.EndsWith(".apk"))
-			{
-				await service.Edits.Apks.Upload(packageName, editId, new FileStream(applicationFile, FileMode.Open), "application/vnd.android.package-archive").UploadAsync().ConfigureAwait(false);
-				var apks = await service.Edits.Apks.List(packageName, editId).ExecuteAsync().ConfigureAwait(false);
+			var credentials = await GoogleCredential.FromFileAsync(serviceAccountFile, CancellationToken.None).ConfigureAwait(false);
+			credentials = credentials.CreateScoped(new SingletonList<string>(AndroidPublisherService.Scope.Androidpublisher));
 
-				return apks.Apks.Last().VersionCode;
+			return new AndroidPublisherService(
+				new BaseClientService.Initializer
+					{
+						HttpClientInitializer = credentials,
+						ApplicationName = appName
+					});
+		}
+
+		private static string GetLanguageCode()
+		{
+			var code = Console.ReadLine();
+			if (!string.IsNullOrWhiteSpace(code) && LanguageCodeRegex.IsMatch(code))
+			{
+				return code;
 			}
 
-			if (applicationFile.EndsWith(".aab"))
-			{
-				await service.Edits.Bundles.Upload(packageName, editId, new FileStream(applicationFile, FileMode.Open), "application/octet-stream").UploadAsync().ConfigureAwait(false);
-				var bundles = await service.Edits.Bundles.List(packageName, editId).ExecuteAsync().ConfigureAwait(false);
-
-				return bundles.Bundles.Last().VersionCode;
-			}
-
-			throw new ArgumentOutOfRangeException(nameof(applicationFile));
+			return GetLanguageCode();
 		}
 
 		private static IEnumerable<string> GetMultilineInput(string prompt)
 		{
 			Console.WriteLine(prompt);
 
-			string input;
+			string? input;
 			while (!string.IsNullOrEmpty(input = Console.ReadLine()))
 			{
 				yield return input;
 			}
 		}
 
-		private static string GetLanguageCode()
+		private static TrackTypes GetTrack()
 		{
-			var code = Console.ReadLine();
-			if (LanguageCodeRegex.IsMatch(code))
+			Console.WriteLine("Choose number of track to publish to:");
+			Console.WriteLine("1 = Alpha, 2 = Beta, 3 = Production");
+			var track = Console.ReadLine();
+			if (int.TryParse(track, out var trackNumber) && trackNumber >= 1 && trackNumber <= 3)
 			{
-				return code;
+				return (TrackTypes)trackNumber;
 			}
 
-			return GetLanguageCode();
+			return GetTrack();
+		}
+
+		private static TrackStatusTypes GetTrackStatus()
+		{
+			Console.WriteLine("Choose number of track to publish to:");
+			Console.WriteLine("1 = Completed, 2 = Draft, 3 = Halted, 4 = InProgress");
+			var track = Console.ReadLine();
+			if (int.TryParse(track, out var trackNumber) && trackNumber >= 1 && trackNumber <= 4)
+			{
+				return (TrackStatusTypes)trackNumber;
+			}
+
+			return GetTrackStatus();
 		}
 
 		private static bool IsInputValid(Configuration configuration)
@@ -156,43 +174,32 @@ namespace GooglePlayPublisherCli
 			return true;
 		}
 
-		private static async Task<AndroidPublisherService> CreateServiceAsync(string appName, string serviceAccountFile)
+		private static async Task<int?> UploadApplicationFileAsync(string editId, AndroidPublisherService service, string packageName, string applicationFile)
 		{
-			var credentials = await GoogleCredential.FromFileAsync(serviceAccountFile, CancellationToken.None).ConfigureAwait(false);
-			credentials = credentials.CreateScoped(new SingletonList<string>(AndroidPublisherService.Scope.Androidpublisher));
-
-			return new AndroidPublisherService(
-				new BaseClientService.Initializer
-					{
-						HttpClientInitializer = credentials,
-						ApplicationName = appName
-					});
-		}
-
-		private static TrackStatusTypes GetTrackStatus()
-		{
-			Console.WriteLine("Choose number of track to publish to:");
-			Console.WriteLine("1 = Completed, 2 = Draft, 3 = Halted, 4 = InProgress");
-			var track = Console.ReadLine();
-			if (int.TryParse(track, out var trackNumber) && trackNumber >= 1 && trackNumber <= 4)
+			if (applicationFile.EndsWith(".apk"))
 			{
-				return (TrackStatusTypes)trackNumber;
+				await service.Edits.Apks.Upload(packageName, editId, new FileStream(applicationFile, FileMode.Open), "application/vnd.android.package-archive").UploadAsync().ConfigureAwait(false);
+				var apks = await service.Edits.Apks.List(packageName, editId).ExecuteAsync().ConfigureAwait(false);
+
+				return apks.Apks.Last().VersionCode;
 			}
 
-			return GetTrackStatus();
-		}
-
-		private static TrackTypes GetTrack()
-		{
-			Console.WriteLine("Choose number of track to publish to:");
-			Console.WriteLine("1 = Alpha, 2 = Beta, 3 = Production");
-			var track = Console.ReadLine();
-			if (int.TryParse(track, out var trackNumber) && trackNumber >= 1 && trackNumber <= 3)
+			if (applicationFile.EndsWith(".aab"))
 			{
-				return (TrackTypes)trackNumber;
+				var uploadProgress = await service.Edits.Bundles.Upload(packageName, editId, new FileStream(applicationFile, FileMode.Open), "application/octet-stream").UploadAsync().ConfigureAwait(false);
+				if (uploadProgress.Status != UploadStatus.Completed)
+				{
+					Console.WriteLine(uploadProgress.Exception.Message);
+					
+					Environment.Exit(1);
+				}
+				
+				var bundles = await service.Edits.Bundles.List(packageName, editId).ExecuteAsync().ConfigureAwait(false);
+
+				return bundles.Bundles.Last().VersionCode;
 			}
 
-			return GetTrack();
+			throw new ArgumentOutOfRangeException(nameof(applicationFile));
 		}
 	}
 }
